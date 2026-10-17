@@ -1,0 +1,17 @@
+﻿@using Microsoft.AspNetCore.Identity
+@inject SignInManager<IdentityUser> SignInManager
+
+<div class="welcome-banner text-center my-5">
+    <h1 class="display-4 fw-bold mb-3 animated-text">
+        👋 Hello
+    </h1>
+    <h2 class="display-4 fw-bold mb-3 animated-text">
+        Welcome to the Online Voting App!
+    </h2>
+    @if (!SignInManager.IsSignedIn(User))
+    {
+        <p class="lead fs-4 text-danger fw-semibold fade-in">
+            Kindly <a href="/Identity/Account/Login" class="text-decoration-underline text-warning">log in</a> with your credentials to proceed.
+        </p>
+    }
+</div>

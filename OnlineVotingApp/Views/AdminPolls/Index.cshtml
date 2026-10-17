@@ -1,0 +1,46 @@
+﻿@model IEnumerable<OnlineVotingApp.Models.Poll>
+
+@{
+    ViewData["Title"] = "Polls List";
+}
+
+<h2>All Polls</h2>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Question</th>
+            <th>From</th>
+            <th>To</th>
+            <th>Display Order</th>
+            <th>Options</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var poll in Model)
+        {
+            <tr>
+                <td>@poll.Question</td>
+                <td>@poll.fromDate.ToString("g")</td>
+                <td>@poll.toDate.ToString("g")</td>
+                <td>@poll.displayOrder</td>
+                <td>
+                    <ul>
+                        @foreach (var option in poll.AnswerOptions)
+                        {
+                            <li>@option.OptionText </li>
+                        }
+                    </ul>
+                </td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@poll.Id" class="btn btn-sm btn-primary">Edit</a>
+                    <a asp-action="Delete" asp-route-id="@poll.Id" class="btn btn-sm btn-danger">Delete</a>
+                    <a asp-action="Results" asp-route-id="@poll.Id" class="btn btn-sm btn-info">Results</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<a asp-action="Create" class="btn btn-success">Create New Poll</a>

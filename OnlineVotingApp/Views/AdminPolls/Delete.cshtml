@@ -1,0 +1,25 @@
+﻿@model OnlineVotingApp.Models.Poll
+
+@{
+    ViewData["Title"] = "Delete Poll";
+}
+
+<h2>Delete Poll</h2>
+
+<h3>Are you sure you want to delete this poll?</h3>
+
+<div>
+    <h4>@Model.Question</h4>
+    <ul>
+        @foreach (var option in Model.AnswerOptions)
+        {
+            <li>@option.OptionText (Votes: @option.VoteCount)</li>
+        }
+    </ul>
+</div>
+
+<form asp-action="Delete" method="post">
+    <input type="hidden" asp-for="Id" />
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>

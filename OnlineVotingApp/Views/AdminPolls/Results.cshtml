@@ -1,0 +1,27 @@
+﻿@model OnlineVotingApp.Models.Poll
+
+@{
+    ViewData["Title"] = "Poll Results";
+}
+
+<h2>Results for: @Model.Question</h2>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Option</th>
+            <th>Votes</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var option in Model.AnswerOptions)
+        {
+            <tr>
+                <td>@option.OptionText</td>
+                <td>@option.VoteCount</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<a asp-action="Index" class="btn btn-secondary">Back to Polls</a>
