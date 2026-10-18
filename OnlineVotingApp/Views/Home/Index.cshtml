@@ -1,17 +1,38 @@
-﻿@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Identity
 @inject SignInManager<IdentityUser> SignInManager
 
-<div class="welcome-banner text-center my-5">
-    <h1 class="display-4 fw-bold mb-3 animated-text">
-        👋 Hello
-    </h1>
-    <h2 class="display-4 fw-bold mb-3 animated-text">
-        Welcome to the Online Voting App!
-    </h2>
-    @if (!SignInManager.IsSignedIn(User))
-    {
-        <p class="lead fs-4 text-danger fw-semibold fade-in">
-            Kindly <a href="/Identity/Account/Login" class="text-decoration-underline text-warning">log in</a> with your credentials to proceed.
+@{
+    ViewData["Title"] = "Home";
+}
+
+<div class="p-5 mb-4 bg-light rounded-4 shadow-sm text-center">
+    <div class="container-fluid py-4">
+        <h1 class="display-5 fw-bold text-primary mb-3">🗳️ Online Voting Application</h1>
+        <p class="col-md-8 fs-5 mx-auto text-muted">
+            A secure, reliable, and transparent platform for digital voting and poll management.
         </p>
-    }
+
+        @if (!SignInManager.IsSignedIn(User))
+        {
+            <div class="mt-4">
+                <a href="/Identity/Account/Login" class="btn btn-primary btn-lg px-4 gap-3">🔑 Log In to Vote</a>
+            </div>
+        }
+        else if (User.IsInRole("Admin"))
+        {
+            <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+                <a asp-controller="AdminPolls" asp-action="Index" class="btn btn-primary btn-lg px-4">📊 Manage Polls</a>
+                <a asp-controller="AdminPolls" asp-action="Create" class="btn btn-success btn-lg px-4">➕ Create Poll</a>
+                <a asp-controller="Admin" asp-action="ListUsers" class="btn btn-outline-secondary btn-lg px-4">👥 Manage Users</a>
+            </div>
+        }
+        else
+        {
+            <div class="mt-4">
+                <a asp-controller="UserPolls" asp-action="Index" class="btn btn-success btn-lg px-5 shadow">
+                    🗳️ View Polls & Cast Your Vote
+                </a>
+            </div>
+        }
+    </div>
 </div>

@@ -1,38 +1,31 @@
-﻿@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Identity
 @using System.Security.Claims
 @inject SignInManager<IdentityUser> SignInManager
-@inject UserManager<IdentityUser> UserManager
 
-
-<ul class="navbar-nav mb-2 mb-lg-0">
+<ul class="navbar-nav mb-2 mb-lg-0 align-items-center">
     @if (SignInManager.IsSignedIn(User))
     {
-        <li class="nav-item d-flex align-items-center me-2">
-            <span class="nav-link text-black fw-semibold form floating-hello">
-                👋 Hello, @User.FindFirst(ClaimTypes.Email)?.Value
+        <li class="nav-item me-2">
+            <span class="badge bg-light text-dark py-2 px-3">
+                👤 @User.FindFirst(ClaimTypes.Email)?.Value
             </span>
         </li>
         @if (User.IsInRole("Admin"))
         {
-            <li class="nav-item">
-                <a class="nav-link text-black" asp-controller="Admin" asp-action="ListUsers">📋 User List</a>
-            </li>
-
-            <li class="nav-item animated-register">
-                <a class="nav-link text-black" asp-area="Identity" asp-page="/Account/Register">📝 Register</a>
+            <li class="nav-item me-2">
+                <a class="btn btn-outline-light btn-sm" asp-area="Identity" asp-page="/Account/Register">➕ Register User</a>
             </li>
         }
-       
-             <li class="nav-item">
+        <li class="nav-item">
             <form class="form-inline" asp-area="Identity" asp-page="/Account/Logout" method="post" id="logoutForm">
-                <button type="submit" class="nav-link btn btn-outline-danger text-black px-3 rounded-pill">Logout</button>
+                <button type="submit" class="btn btn-sm btn-light px-3 rounded-pill">Logout</button>
             </form>
-            </li>
+        </li>
     }
     else
     {
         <li class="nav-item">
-            <a class="nav-link text-black" asp-area="Identity" asp-page="/Account/Login">🔑 Login</a>
+            <a class="btn btn-outline-light btn-sm px-3 rounded-pill" asp-area="Identity" asp-page="/Account/Login">🔑 Login</a>
         </li>
     }
 </ul>

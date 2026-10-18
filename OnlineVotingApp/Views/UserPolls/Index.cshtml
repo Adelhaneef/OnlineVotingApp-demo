@@ -1,5 +1,4 @@
-﻿@model List<OnlineVotingApp.Models.PollWithUserVote>
-
+@model List<OnlineVotingApp.Models.PollWithUserVote>
 
 @{
     ViewData["Title"] = "Vote on Polls";
@@ -7,37 +6,100 @@
 
 <h2 class="mb-4">🗳️ Cast Your Vote</h2>
 
-@foreach (var item in Model)
+@if (TempData["Message"] != null)
 {
-    var poll = item.Poll;
-    var selectedId = item.SelectedOptionId;
-    bool voted = selectedId != null;
-
-    <div class="card mb-3 p-3">
-        <h4>@poll.Question</h4>
-        <form asp-action="Vote" method="post">
-            <input type="hidden" name="PollId" value="@poll.Id" />
-            @foreach (var option in poll.AnswerOptions)
-            {
-                <div class="form-check">
-                    <input class="form-check-input"
-                           type="radio"
-                           name="optionId"
-                           value="@option.Id"
-                           @(voted ? "disabled" : "")
-                           @(selectedId == option.Id ? "checked" : "") />
-                    <label class="form-check-label">@option.OptionText</label>
-                </div>
-            }
-
-            @if (!voted)
-            {
-                <button type="submit" class="btn btn-success mt-2">Vote</button>
-            }
-            else
-            {
-                <p><em>You voted for: @poll.AnswerOptions.First(o => o.Id == selectedId).OptionText</em></p>
-            }
-        </form>
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Message"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (Model == null || !Model.Any())
+{
+    <div class="alert alert-info">
+        There are currently no active polls open for voting. Please check back later!
+    </div>
+}
+else
+{
+    @foreach (var item in Model)
+    {
+        var poll = item.Poll;
+        var selectedId = item.SelectedOptionId;
+        bool voted = selectedId != null;
+        var totalVotes = poll.AnswerOptions.Sum(o => o.VoteCount);
+
+        <div class="card mb-4 shadow-sm border-0">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold">@poll.Question</h5>
+                <span class="badge bg-secondary">Closes: @poll.toDate.ToString("g")</span>
+            </div>
+            <div class="card-body">
+                @if (!voted)
+                {
+                    <form asp-action="Vote" method="post">
+                        <input type="hidden" name="PollId" value="@poll.Id" />
+                        @foreach (var option in poll.AnswerOptions)
+                        {
+                            <div class="form-check mb-2">
+                                <input class="form-check-input"
+                                       type="radio"
+                                       name="optionId"
+                                       value="@option.Id"
+                                       required />
+                                <label class="form-check-label">@option.OptionText</label>
+                            </div>
+                        }
+                        <button type="submit" class="btn btn-success mt-3">Submit Vote</button>
+                    </form>
+                }
+                else
+                {
+                    var votedOptionText = poll.AnswerOptions.FirstOrDefault(o => o.Id == selectedId)?.OptionText ?? "Recorded Choice";
+                    <div class="alert alert-success py-2 mb-3">
+                        ✓ You voted for: <strong>@votedOptionText</strong>
+                    </div>
+
+                    <h6 class="text-muted fw-bold mb-2">Current Results (@totalVotes total votes):</h6>
+                    <div class="row g-2">
+                        @foreach (var option in poll.AnswerOptions)
+                        {
+                            var percentage = totalVotes > 0 ? (option.VoteCount * 100.0 / totalVotes) : 0;
+                            var isUserChoice = option.Id == selectedId;
+
+                            <div class="col-12 mb-2">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span>
+                                        @option.OptionText
+                                        @if (isUserChoice)
+                                        {
+                                            <span class="badge bg-success ms-1">Your Vote</span>
+                                        }
+                                    </span>
+                                    <span class="text-muted">@option.VoteCount (@percentage.ToString("0.#")%)</span>
+                                </div>
+                                <div class="progress" style="height: 14px; border-radius: 4px;">
+                                    <div class="progress-bar @(isUserChoice ? "bg-success" : "bg-primary")"
+                                         role="progressbar"
+                                         style="width: @percentage.ToString("0.#")%;"
+                                         aria-valuenow="@percentage"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100">
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
 }

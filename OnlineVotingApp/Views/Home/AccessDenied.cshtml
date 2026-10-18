@@ -1,11 +1,17 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
 @{
     ViewData["Title"] = "Access Denied";
 }
 
-<h2>Access Denied</h2>
-<p> You are not allowed to access this page. Only Admins can register users.</p>
+<div class="card border-danger shadow-sm my-5 text-center p-4" style="max-width: 600px; margin: 0 auto;">
+    <div class="card-body">
+        <h2 class="text-danger mb-3">🚫 Access Denied</h2>
+        <p class="text-muted fs-5">
+            You do not have permission to access this page or resource.
+        </p>
+        <div class="mt-4">
+            <a asp-controller="Home" asp-action="Index" class="btn btn-primary px-4">Return to Home</a>
+        </div>
+    </div>
+</div>
 
 

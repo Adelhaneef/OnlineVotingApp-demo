@@ -1,27 +1,73 @@
-﻿@model OnlineVotingApp.Models.Poll
+@model OnlineVotingApp.Models.Poll
 
 @{
     ViewData["Title"] = "Poll Results";
+    var totalVotes = Model.AnswerOptions.Sum(o => o.VoteCount);
+    var maxVotes = Model.AnswerOptions.Any() ? Model.AnswerOptions.Max(o => o.VoteCount) : 0;
+    var now = DateTime.Now;
+    var isActive = Model.fromDate <= now && Model.toDate >= now;
 }
 
-<h2>Results for: @Model.Question</h2>
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+            <div>
+                <span class="badge @(isActive ? "bg-success" : "bg-secondary") mb-2">
+                    @(isActive ? "🟢 Active Poll" : "⚪ Closed Poll")
+                </span>
+                <h2 class="h3 fw-bold mb-1">@Model.Question</h2>
+                <small class="text-muted">
+                    📅 Schedule: @Model.fromDate.ToString("g") &mdash; @Model.toDate.ToString("g")
+                </small>
+            </div>
+            <div class="text-md-end">
+                <span class="badge bg-primary fs-6 px-3 py-2">
+                    Total Votes: <strong>@totalVotes</strong>
+                </span>
+            </div>
+        </div>
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Option</th>
-            <th>Votes</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var option in Model.AnswerOptions)
-        {
-            <tr>
-                <td>@option.OptionText</td>
-                <td>@option.VoteCount</td>
-            </tr>
-        }
-    </tbody>
-</table>
+        <hr class="my-4" />
 
-<a asp-action="Index" class="btn btn-secondary">Back to Polls</a>
+        <div class="row g-4">
+            @foreach (var option in Model.AnswerOptions)
+            {
+                var percentage = totalVotes > 0 ? (option.VoteCount * 100.0 / totalVotes) : 0;
+                var isLeader = maxVotes > 0 && option.VoteCount == maxVotes;
+
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="fw-semibold fs-6">
+                            @option.OptionText
+                            @if (isLeader)
+                            {
+                                <span class="badge bg-warning text-dark ms-2">⭐ Leading</span>
+                            }
+                        </span>
+                        <span class="text-muted fw-bold">
+                            @option.VoteCount vote@(option.VoteCount == 1 ? "" : "s") (@percentage.ToString("0.#")%)
+                        </span>
+                    </div>
+                    <div class="progress" style="height: 22px; border-radius: 8px;">
+                        <div class="progress-bar @(isLeader ? "bg-success" : "bg-primary") progress-bar-striped"
+                             role="progressbar"
+                             style="width: @percentage.ToString("0.#")%;"
+                             aria-valuenow="@percentage"
+                             aria-valuemin="0"
+                             aria-valuemax="100">
+                            @if (percentage >= 8)
+                            {
+                                <span>@percentage.ToString("0.#")%</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="d-flex gap-2 mt-5">
+            <a asp-action="Index" class="btn btn-outline-secondary">← Back to All Polls</a>
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">✏️ Edit Poll</a>
+        </div>
+    </div>
+</div>

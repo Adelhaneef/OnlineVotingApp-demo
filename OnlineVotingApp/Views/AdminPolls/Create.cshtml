@@ -1,4 +1,4 @@
-﻿@model OnlineVotingApp.Models.Poll
+@model OnlineVotingApp.Models.Poll
 
 @{
     ViewData["Title"] = "Create Poll";
@@ -6,57 +6,55 @@
 
 <h2 class="mb-4">Create Poll</h2>
 
-@if (!ViewData.ModelState.IsValid)
-{
-    <div class="alert alert-danger">
-        <strong>There were errors in the form:</strong>
-        <ul>
-            @foreach (var state in ViewData.ModelState)
-            {
-                foreach (var error in state.Value.Errors)
-                {
-                    <li>@state.Key: @error.ErrorMessage</li>
-                }
-            }
-        </ul>
-    </div>
-}
+<form asp-action="Create" method="post">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
 
-<form asp-action="Create" method="post" novalidate>
     <div class="mb-3">
         <label asp-for="Question" class="form-label"></label>
-        <input asp-for="Question" class="form-control" placeholder="Enter your poll question here" />
+        <input asp-for="Question" class="form-control" placeholder="Enter your poll question here" required />
         <span asp-validation-for="Question" class="text-danger"></span>
     </div>
 
     <div class="row g-3 mb-3">
         <div class="col-md-6">
-            <label asp-for="fromDate" class="form-label"></label>
-            <input asp-for="fromDate" class="form-control" type="datetime-local" />
+            <label asp-for="fromDate" class="form-label">From Date</label>
+            <input asp-for="fromDate" class="form-control" type="datetime-local" asp-format="{0:yyyy-MM-ddTHH:mm}" required />
             <span asp-validation-for="fromDate" class="text-danger"></span>
         </div>
         <div class="col-md-6">
-            <label asp-for="toDate" class="form-label"></label>
-            <input asp-for="toDate" class="form-control" type="datetime-local" />
+            <label asp-for="toDate" class="form-label">To Date</label>
+            <input asp-for="toDate" class="form-control" type="datetime-local" asp-format="{0:yyyy-MM-ddTHH:mm}" required />
             <span asp-validation-for="toDate" class="text-danger"></span>
         </div>
     </div>
 
     <div class="mb-3">
-        <label asp-for="displayOrder" class="form-label"></label>
-        <input asp-for="displayOrder" class="form-control" placeholder="Display order (numeric)" />
+        <label asp-for="displayOrder" class="form-label">Display Order</label>
+        <input asp-for="displayOrder" class="form-control" type="number" placeholder="Display order (numeric)" />
         <span asp-validation-for="displayOrder" class="text-danger"></span>
     </div>
 
-    <h4 class="mt-4 mb-3">Answer Options</h4>
-    @for (int i = 0; i < Model.AnswerOptions.Count; i++)
-    {
-        <div class="mb-3">
-            <label class="form-label">Option @(i + 1)</label>
-            <input asp-for="AnswerOptions[@i].OptionText" class="form-control" placeholder="Enter option text" />
-            <span asp-validation-for="AnswerOptions[@i].OptionText" class="text-danger"></span>
-        </div>
-    }
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
+        <h4 class="mb-0">Answer Options</h4>
+        <button type="button" class="btn btn-outline-success btn-sm" id="addOptionBtn">
+            ➕ Add Option
+        </button>
+    </div>
+
+    <div id="options-container">
+        @for (int i = 0; i < Model.AnswerOptions.Count; i++)
+        {
+            <div class="option-row mb-3">
+                <label class="form-label option-label">Option @(i + 1)</label>
+                <div class="input-group">
+                    <input type="hidden" name="AnswerOptions[@i].Id" value="0" />
+                    <input name="AnswerOptions[@i].OptionText" value="@Model.AnswerOptions[i].OptionText" class="form-control" placeholder="Enter option text" required />
+                    <button type="button" class="btn btn-outline-danger remove-option-btn" title="Remove Option">🗑️</button>
+                </div>
+                <span asp-validation-for="AnswerOptions[i].OptionText" class="text-danger"></span>
+            </div>
+        }
+    </div>
 
     <div class="d-flex gap-2 mt-4">
         <button type="submit" class="btn btn-primary">Create Poll</button>
@@ -65,5 +63,58 @@
 </form>
 
 @section Scripts {
-    @await Html.PartialAsync("_ValidationScriptsPartial")
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const container = document.getElementById('options-container');
+            const addBtn = document.getElementById('addOptionBtn');
+
+            function updateLabelsAndIndices() {
+                const rows = container.querySelectorAll('.option-row');
+                rows.forEach((row, index) => {
+                    const label = row.querySelector('.option-label');
+                    if (label) label.textContent = `Option ${index + 1}`;
+
+                    const idInput = row.querySelector('input[type="hidden"]');
+                    if (idInput) idInput.name = `AnswerOptions[${index}].Id`;
+
+                    const textInput = row.querySelector('input:not([type="hidden"])');
+                    if (textInput) textInput.name = `AnswerOptions[${index}].OptionText`;
+
+                    const removeBtn = row.querySelector('.remove-option-btn');
+                    if (removeBtn) {
+                        removeBtn.disabled = rows.length <= 2;
+                    }
+                });
+            }
+
+            addBtn.addEventListener('click', function () {
+                const index = container.querySelectorAll('.option-row').length;
+                const newRow = document.createElement('div');
+                newRow.className = 'option-row mb-3';
+                newRow.innerHTML = `
+                    <label class="form-label option-label">Option ${index + 1}</label>
+                    <div class="input-group">
+                        <input type="hidden" name="AnswerOptions[${index}].Id" value="0" />
+                        <input name="AnswerOptions[${index}].OptionText" class="form-control" placeholder="Enter option text" required />
+                        <button type="button" class="btn btn-outline-danger remove-option-btn" title="Remove Option">🗑️</button>
+                    </div>
+                `;
+                container.appendChild(newRow);
+                updateLabelsAndIndices();
+            });
+
+            container.addEventListener('click', function (e) {
+                if (e.target.closest('.remove-option-btn')) {
+                    const rows = container.querySelectorAll('.option-row');
+                    if (rows.length > 2) {
+                        e.target.closest('.option-row').remove();
+                        updateLabelsAndIndices();
+                    }
+                }
+            });
+
+            updateLabelsAndIndices();
+        });
+    </script>
 }
