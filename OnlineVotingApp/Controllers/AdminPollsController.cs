@@ -1,4 +1,4 @@
-﻿// Controllers/AdminPollsController.cs
+// Controllers/AdminPollsController.cs
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -23,14 +23,16 @@ public class AdminPollsController : Controller
 
     public IActionResult Create()
     {
+        var now = DateTime.Now;
         var poll = new Poll
         {
+            fromDate = now,
+            toDate = now.AddDays(7),
+            displayOrder = 1,
             AnswerOptions = new List<AnswerOption>
             {
-            new AnswerOption(),
-            new AnswerOption(),
-            new AnswerOption(),
-            new AnswerOption()
+                new AnswerOption(),
+                new AnswerOption()
             }
         };
         return View(poll);
@@ -40,19 +42,33 @@ public class AdminPollsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(Poll poll)
     {
-        // Manually remove the Poll field from validation
-        foreach (var opt in poll.AnswerOptions)
-        {
-            ModelState.Remove($"AnswerOptions[{poll.AnswerOptions.IndexOf(opt)}].Poll");
-        }
-
+        // Filter out blank options
         poll.AnswerOptions = poll.AnswerOptions?
             .Where(o => !string.IsNullOrWhiteSpace(o.OptionText))
-            .ToList();
+            .ToList() ?? new List<AnswerOption>();
+
+        // Remove navigation property validation from AnswerOptions
+        for (int i = 0; i < poll.AnswerOptions.Count; i++)
+        {
+            ModelState.Remove($"AnswerOptions[{i}].Poll");
+        }
+
+        // Validate date logic
+        if (poll.toDate <= poll.fromDate)
+        {
+            ModelState.AddModelError(nameof(poll.toDate), "The 'To Date' must be later than the 'From Date'.");
+        }
+
+        // Enforce minimum of 2 options
+        if (poll.AnswerOptions.Count < 2)
+        {
+            ModelState.AddModelError("AnswerOptions", "A poll must have at least 2 answer options.");
+            ModelState.AddModelError(string.Empty, "A poll must have at least 2 answer options.");
+        }
 
         if (!ModelState.IsValid)
         {
-            while (poll.AnswerOptions.Count < 4)
+            while (poll.AnswerOptions.Count < 2)
                 poll.AnswerOptions.Add(new AnswerOption());
 
             return View(poll);
@@ -63,6 +79,7 @@ public class AdminPollsController : Controller
 
         _context.Add(poll);
         await _context.SaveChangesAsync();
+        TempData["Message"] = "Poll created successfully.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -70,9 +87,15 @@ public class AdminPollsController : Controller
 
     public async Task<IActionResult> Edit(int id)
     {
-        var poll = await _context.Polls.
-            Include(p => p.AnswerOptions).
-            FirstOrDefaultAsync(p => p.Id == id);
+        var poll = await _context.Polls
+            .Include(p => p.AnswerOptions)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (poll == null)
+        {
+            return NotFound();
+        }
+
         return View(poll);
     }
 
@@ -81,6 +104,30 @@ public class AdminPollsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(Poll poll)
     {
+        // Filter out blank options
+        poll.AnswerOptions = poll.AnswerOptions?
+            .Where(o => !string.IsNullOrWhiteSpace(o.OptionText))
+            .ToList() ?? new List<AnswerOption>();
+
+        // Remove navigation property validation from AnswerOptions
+        for (int i = 0; i < poll.AnswerOptions.Count; i++)
+        {
+            ModelState.Remove($"AnswerOptions[{i}].Poll");
+        }
+
+        // Validate date logic
+        if (poll.toDate <= poll.fromDate)
+        {
+            ModelState.AddModelError(nameof(poll.toDate), "The 'To Date' must be later than the 'From Date'.");
+        }
+
+        // Enforce minimum of 2 options
+        if (poll.AnswerOptions.Count < 2)
+        {
+            ModelState.AddModelError("AnswerOptions", "A poll must have at least 2 answer options.");
+            ModelState.AddModelError(string.Empty, "A poll must have at least 2 answer options.");
+        }
+
         if (!ModelState.IsValid)
         {
             return View(poll);
@@ -95,32 +142,88 @@ public class AdminPollsController : Controller
             return NotFound();
         }
 
+        // Identify options being removed (present in DB but omitted from submitted form)
+        var submittedOptionIds = poll.AnswerOptions
+            .Where(o => o.Id > 0)
+            .Select(o => o.Id)
+            .ToHashSet();
+
+        var removedOptions = existingPoll.AnswerOptions
+            .Where(o => !submittedOptionIds.Contains(o.Id))
+            .ToList();
+
+        // Enforce safety policy: Do not delete options that have existing votes
+        foreach (var removedOption in removedOptions)
+        {
+            var hasVotes = removedOption.VoteCount > 0 ||
+                await _context.UserVotes.AnyAsync(v => v.AnswerOptionId == removedOption.Id);
+
+            if (hasVotes)
+            {
+                var errorMsg = $"Cannot remove option '{removedOption.OptionText}' because it already has {removedOption.VoteCount} recorded vote(s). Answer options with existing votes cannot be deleted to preserve election history.";
+                ModelState.AddModelError(string.Empty, errorMsg);
+                ModelState.AddModelError("AnswerOptions", errorMsg);
+
+                poll.AnswerOptions = existingPoll.AnswerOptions.ToList();
+                return View(poll);
+            }
+        }
+
         // Update poll fields
         existingPoll.Question = poll.Question;
         existingPoll.fromDate = poll.fromDate;
         existingPoll.toDate = poll.toDate;
         existingPoll.displayOrder = poll.displayOrder;
 
-        // Sync answer options
+        // Safely remove options with 0 votes
+        foreach (var removedOption in removedOptions)
+        {
+            _context.Answers.Remove(removedOption);
+        }
+
+        // Sync answer options: update existing or add new ones
         foreach (var updatedOption in poll.AnswerOptions)
         {
-            var existingOption = existingPoll.AnswerOptions
-                .FirstOrDefault(o => o.Id == updatedOption.Id);
-
-            if (existingOption != null)
+            if (updatedOption.Id > 0)
             {
-                existingOption.OptionText = updatedOption.OptionText;
+                var existingOption = existingPoll.AnswerOptions
+                    .FirstOrDefault(o => o.Id == updatedOption.Id);
+
+                if (existingOption != null)
+                {
+                    existingOption.OptionText = updatedOption.OptionText;
+                }
+            }
+            else
+            {
+                // New option added during edit
+                existingPoll.AnswerOptions.Add(new AnswerOption
+                {
+                    OptionText = updatedOption.OptionText,
+                    VoteCount = 0,
+                    PollId = existingPoll.Id
+                });
             }
         }
 
         await _context.SaveChangesAsync();
+        TempData["Message"] = "Poll updated successfully.";
         return RedirectToAction(nameof(Index));
     }
 
 
     public async Task<IActionResult> Delete(int id)
     {
-        var poll = await _context.Polls.Include(p => p.AnswerOptions).FirstOrDefaultAsync(p => p.Id == id);
+        var poll = await _context.Polls
+            .Include(p => p.AnswerOptions)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (poll == null)
+        {
+            TempData["Error"] = "Poll not found.";
+            return RedirectToAction(nameof(Index));
+        }
+
         return View(poll);
     }
 
@@ -128,10 +231,43 @@ public class AdminPollsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
-        var poll = await _context.Polls.Include(p => p.AnswerOptions).FirstOrDefaultAsync(p => p.Id == id);
-        _context.Answers.RemoveRange(poll.AnswerOptions);
-        _context.Polls.Remove(poll);
-        await _context.SaveChangesAsync();
+        var poll = await _context.Polls
+            .Include(p => p.AnswerOptions)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (poll == null)
+        {
+            TempData["Error"] = "Poll not found or already deleted.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            // Remove associated UserVotes first to prevent orphaned records
+            var relatedVotes = await _context.UserVotes.Where(v => v.PollId == id).ToListAsync();
+            if (relatedVotes.Any())
+            {
+                _context.UserVotes.RemoveRange(relatedVotes);
+            }
+
+            if (poll.AnswerOptions != null && poll.AnswerOptions.Any())
+            {
+                _context.Answers.RemoveRange(poll.AnswerOptions);
+            }
+
+            _context.Polls.Remove(poll);
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            TempData["Message"] = "Poll and associated votes deleted successfully.";
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync();
+            TempData["Error"] = "An error occurred while deleting the poll.";
+        }
+
         return RedirectToAction(nameof(Index));
     }
 

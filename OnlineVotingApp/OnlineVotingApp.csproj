@@ -4,6 +4,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>$(NoWarn);CS8618</NoWarn>
     <UserSecretsId>aspnet-OnlineVotingApp-273af3e0-71fb-4e10-9946-83c39f8c572b</UserSecretsId>
   </PropertyGroup>
 

@@ -1,32 +1,149 @@
-﻿@model OnlineVotingApp.Models.Poll
+@model OnlineVotingApp.Models.Poll
 
 @{
     ViewData["Title"] = "Edit Poll";
 }
 
-<h2>Edit Poll</h2>
+<h2 class="mb-4">Edit Poll</h2>
 
 <form asp-action="Edit" method="post">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
     <input type="hidden" asp-for="Id" />
 
-    <div class="form-group">
-        <label asp-for="Question"></label>
+    <div class="mb-3">
+        <label asp-for="Question" class="form-label"></label>
         <input asp-for="Question" class="form-control" />
         <span asp-validation-for="Question" class="text-danger"></span>
     </div>
 
-    <h4>Answer Options</h4>
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <label asp-for="fromDate" class="form-label">From Date</label>
+            <input asp-for="fromDate" class="form-control" type="datetime-local" asp-format="{0:yyyy-MM-ddTHH:mm}" />
+            <span asp-validation-for="fromDate" class="text-danger"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="toDate" class="form-label">To Date</label>
+            <input asp-for="toDate" class="form-control" type="datetime-local" asp-format="{0:yyyy-MM-ddTHH:mm}" />
+            <span asp-validation-for="toDate" class="text-danger"></span>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="displayOrder" class="form-label">Display Order</label>
+        <input asp-for="displayOrder" class="form-control" type="number" />
+        <span asp-validation-for="displayOrder" class="text-danger"></span>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+        <h4 class="mb-0">Answer Options</h4>
+        <button type="button" class="btn btn-outline-success btn-sm" id="addOptionBtn">
+            ➕ Add Option
+        </button>
+    </div>
+
+    <span asp-validation-for="AnswerOptions" class="text-danger d-block mb-3"></span>
+
     <div id="options-container">
         @for (int i = 0; i < Model.AnswerOptions.Count; i++)
         {
-            <div class="option-item">
-                <input type="hidden" name="AnswerOptions[@i].Id" value="@Model.AnswerOptions[i].Id" />
-                <input type="text" name="AnswerOptions[@i].OptionText" value="@Model.AnswerOptions[i].OptionText" class="form-control mb-2" />
+            var opt = Model.AnswerOptions[i];
+            var hasVotes = opt.VoteCount > 0;
+            <div class="option-row mb-3" data-votecount="@opt.VoteCount">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label class="form-label option-label mb-0">Option @(i + 1)</label>
+                    @if (hasVotes)
+                    {
+                        <span class="badge bg-secondary">🔒 @opt.VoteCount vote(s) recorded</span>
+                    }
+                </div>
+                <div class="input-group">
+                    <input type="hidden" name="AnswerOptions[@i].Id" value="@opt.Id" />
+                    <input type="hidden" name="AnswerOptions[@i].VoteCount" value="@opt.VoteCount" />
+                    <input name="AnswerOptions[@i].OptionText" value="@opt.OptionText" class="form-control" placeholder="Enter option text" required />
+                    @if (hasVotes)
+                    {
+                        <button type="button" class="btn btn-outline-secondary remove-option-btn" title="Cannot remove option with recorded votes" disabled>🔒</button>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-outline-danger remove-option-btn" title="Remove Option">🗑️</button>
+                    }
+                </div>
+                <span asp-validation-for="AnswerOptions[i].OptionText" class="text-danger"></span>
             </div>
         }
     </div>
 
-    <br />
-    <button type="submit" class="btn btn-primary">Save</button>
-    <a asp-action="Index" class="btn btn-secondary">Back to List</a>
+    <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Back to List</a>
+    </div>
 </form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const container = document.getElementById('options-container');
+            const addBtn = document.getElementById('addOptionBtn');
+
+            function updateLabelsAndIndices() {
+                const rows = container.querySelectorAll('.option-row');
+                rows.forEach((row, index) => {
+                    const label = row.querySelector('.option-label');
+                    if (label) label.textContent = `Option ${index + 1}`;
+
+                    const idInput = row.querySelector('input[name$=".Id"]');
+                    if (idInput) idInput.name = `AnswerOptions[${index}].Id`;
+
+                    const voteCountInput = row.querySelector('input[name$=".VoteCount"]');
+                    if (voteCountInput) voteCountInput.name = `AnswerOptions[${index}].VoteCount`;
+
+                    const textInput = row.querySelector('input[name$=".OptionText"]');
+                    if (textInput) textInput.name = `AnswerOptions[${index}].OptionText`;
+
+                    const removeBtn = row.querySelector('.remove-option-btn');
+                    const isLocked = row.getAttribute('data-votecount') && parseInt(row.getAttribute('data-votecount'), 10) > 0;
+                    if (removeBtn && !isLocked) {
+                        removeBtn.disabled = rows.length <= 2;
+                    }
+                });
+            }
+
+            addBtn.addEventListener('click', function () {
+                const index = container.querySelectorAll('.option-row').length;
+                const newRow = document.createElement('div');
+                newRow.className = 'option-row mb-3';
+                newRow.setAttribute('data-votecount', '0');
+                newRow.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label class="form-label option-label mb-0">Option ${index + 1}</label>
+                    </div>
+                    <div class="input-group">
+                        <input type="hidden" name="AnswerOptions[${index}].Id" value="0" />
+                        <input type="hidden" name="AnswerOptions[${index}].VoteCount" value="0" />
+                        <input name="AnswerOptions[${index}].OptionText" class="form-control" placeholder="Enter option text" required />
+                        <button type="button" class="btn btn-outline-danger remove-option-btn" title="Remove Option">🗑️</button>
+                    </div>
+                `;
+                container.appendChild(newRow);
+                updateLabelsAndIndices();
+            });
+
+            container.addEventListener('click', function (e) {
+                const removeBtn = e.target.closest('.remove-option-btn');
+                if (removeBtn && !removeBtn.disabled) {
+                    const rows = container.querySelectorAll('.option-row');
+                    if (rows.length > 2) {
+                        removeBtn.closest('.option-row').remove();
+                        updateLabelsAndIndices();
+                    }
+                }
+            });
+
+            updateLabelsAndIndices();
+        });
+    </script>
+}
