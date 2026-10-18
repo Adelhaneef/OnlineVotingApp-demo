@@ -280,23 +280,29 @@ public class AdminPollsController : Controller
         if (poll == null)
             return NotFound();
 
-        // Get active user IDs
-        var validUserIds = await _context.Users.Select(u => u.Id).ToListAsync();
+        // Aggregate valid vote counts directly in database to avoid loading all users and votes into memory
+        var voteCounts = await _context.UserVotes
+            .Where(v => v.PollId == id && _context.Users.Any(u => u.Id == v.UserId))
 
-        // Get valid votes for this poll
-        var filteredVotes = await _context.UserVotes
-            .Where(v => v.PollId == id && validUserIds.Contains(v.UserId))
-            .ToListAsync();
-
-        // Count votes per option
-        var voteCounts = filteredVotes
             .GroupBy(v => v.AnswerOptionId)
-            .ToDictionary(g => g.Key, g => g.Count());
+            .Select(g => new { OptionId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.OptionId, x => x.Count);
+
+
+
+
+
+
+
+
+
+
+
 
         // Update the vote counts for display (do not save to DB)
         foreach (var option in poll.AnswerOptions)
         {
-            option.VoteCount = voteCounts.ContainsKey(option.Id) ? voteCounts[option.Id] : 0;
+            option.VoteCount = voteCounts.TryGetValue(option.Id, out var count) ? count : 0;
         }
 
         return View(poll);
