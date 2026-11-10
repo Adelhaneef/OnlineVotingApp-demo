@@ -184,7 +184,7 @@ namespace OnlineVotingApp.Tests
         [Fact]
         public async Task OptionRemoval_WhenOptionHasVotes_CannotBeDeleted()
         {
-            // Rule 6 (Priority 1): Voted options cannot be removed during edit
+            // Rule 6: Voted options cannot be removed during edit
             using var context = CreateInMemoryContext(nameof(OptionRemoval_WhenOptionHasVotes_CannotBeDeleted));
 
             var poll = new Poll
@@ -214,7 +214,7 @@ namespace OnlineVotingApp.Tests
         [Fact]
         public async Task OptionRemoval_WhenOptionHasZeroVotes_CanBeSafelyDeleted()
         {
-            // Rule 7 (Priority 1): 0-vote options can be safely removed
+            // Rule 7: 0-vote options can be safely removed
             using var context = CreateInMemoryContext(nameof(OptionRemoval_WhenOptionHasZeroVotes_CanBeSafelyDeleted));
 
             var poll = new Poll
