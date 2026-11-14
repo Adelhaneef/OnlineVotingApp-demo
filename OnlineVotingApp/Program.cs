@@ -16,7 +16,7 @@ namespace OnlineVotingApp
             // Add services to the container.
             var connectionString = builder.Configuration.GetConnectionString("VotingApp") ?? throw new InvalidOperationException("Connection string 'VotingApp' not found.");
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("VotingApp")));
+                options.UseSqlServer(connectionString));
             builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
             builder.Services.AddDefaultIdentity<IdentityUser>(options =>
@@ -85,14 +85,26 @@ namespace OnlineVotingApp
 
                 var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
 
-                var adminUser = await userManager.FindByEmailAsync("admin@gmail.com");
-                if (adminUser != null && ! (await userManager.IsInRoleAsync(adminUser, "Admin")))
+                const string adminEmail = "admin@gmail.com";
+                var adminUser = await userManager.FindByEmailAsync(adminEmail);
+                if (adminUser == null)
+                {
+                    adminUser = new IdentityUser
+                    {
+                        UserName = adminEmail,
+                        Email = adminEmail,
+                        EmailConfirmed = true
+                    };
+                    await userManager.CreateAsync(adminUser, "Admin@12345");
+                }
+
+                if (!await userManager.IsInRoleAsync(adminUser, "Admin"))
                 {
                     await userManager.AddToRoleAsync(adminUser, "Admin");
                 }
 
                 var normalUser = await userManager.FindByEmailAsync("adelhaneef@gmail.com");
-                if (normalUser !=null && !(await userManager.IsInRoleAsync(normalUser, "User")))
+                if (normalUser != null && !(await userManager.IsInRoleAsync(normalUser, "User")))
                 {
                     await userManager.AddToRoleAsync(normalUser, "User");
                 }
